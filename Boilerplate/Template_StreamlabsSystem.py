@@ -15,10 +15,10 @@ from Settings_Module import MySettings
 #---------------------------
 #   [Required] Script Information
 #---------------------------
-ScriptName = "Template Script"
+ScriptName = "BeaverQueue"
 Website = "https://www.streamlabs.com"
-Description = "!test will post a message in chat"
-Creator = "AnkhHeart"
+Description = "!beavers command"
+Creator = "Metsfan"
 Version = "1.0.0.0"
 
 #---------------------------
@@ -33,7 +33,7 @@ ScriptSettings = MySettings()
 #   [Required] Initialize Data (Only called on load)
 #---------------------------
 def Init():
-
+    global ScriptSettings
     #   Create Settings Directory
     directory = os.path.join(os.path.dirname(__file__), "Settings")
     if not os.path.exists(directory):
@@ -42,7 +42,6 @@ def Init():
     #   Load settings
     SettingsFile = os.path.join(os.path.dirname(__file__), "Settings\settings.json")
     ScriptSettings = MySettings(SettingsFile)
-    ScriptSettings.Response = "Overwritten pong! ^_^"
     return
 
 #---------------------------
@@ -54,13 +53,46 @@ def Execute(data):
 
     #   Check if the propper command is used, the command is not on cooldown and the user has permission to use the command
     if data.IsChatMessage() and data.GetParam(0).lower() == ScriptSettings.Command and not Parent.IsOnUserCooldown(ScriptName,ScriptSettings.Command,data.User) and Parent.HasPermission(data.User,ScriptSettings.Permission,ScriptSettings.Info):
-        Parent.BroadcastWsEvent("EVENT_MINE","{'show':false}")
-        Parent.SendStreamMessage(ScriptSettings.Response)    # Send your message to chat
+        # Parent.BroadcastWsEvent("EVENT_ADDED_TO_BEAVER_QUEUE","{'show':false}")
+        command = data.GetParam(1)
+        if command == 'list':
+            print_list(data)
+        elif command == 'addme':
+            add_user(data)
+        else:
+            print_help(data)
+
         Parent.AddUserCooldown(ScriptName,ScriptSettings.Command,data.User,ScriptSettings.Cooldown)  # Put the command on cooldown
 
     
     return
 
+def print_list(data):
+    names = latest_names_queue()
+    if len(names) > 0:
+        Parent.SendStreamMessage("The next beavers to be born will be: {}".format(", ".join(names[0:5])))
+    else:
+        Parent.SendStreamMessage("The beaver queue is empty. Add yourself with !beavers addme to be born as a beaver!")
+
+def add_user(data):
+    names = latest_names_queue()
+    if data.UserName in names:
+        Parent.SendStreamMessage("{} is already in the queue. Please wait your turn!".format(data.UserName, data.GetParam(1)))
+    else:
+        add_name_to_queue(data.UserName)
+        Parent.SendStreamMessage("{} has been added to the queue!".format(data.UserName, data.GetParam(1)))
+
+def print_help(data):
+    Parent.SendStreamMessage("Available Commands:\n!beavers addme - Add yourself as a beaver to be born!\n!beavers list - Display upcoming beavers")
+
+def latest_names_queue():
+    file = open(ScriptSettings.NamesFileLocation, "r")
+    return [line.rstrip("\n") for line in file]
+
+def add_name_to_queue(name):
+    file = open(ScriptSettings.NamesFileLocation, "a")
+    file.write(name + "\n")
+    file.close()
 #---------------------------
 #   [Required] Tick method (Gets called during every iteration even when there is no incoming data)
 #---------------------------
