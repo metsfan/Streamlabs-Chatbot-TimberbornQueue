@@ -70,15 +70,15 @@ def Execute(data):
 def print_list(data):
     names = latest_names_queue()
     if len(names) > 0:
-        Parent.SendStreamMessage("The next beavers to be born will be: {}".format(", ".join(names[0:5])))
+        Parent.SendStreamMessage("The next beavers to be born will be: {}".format(names))
     else:
         Parent.SendStreamMessage("The beaver queue is empty. Add yourself with !beavers addme to be born as a beaver!")
 
 def add_user(data):
-    names = latest_names_queue()
-    if data.UserName in names:
+    response = add_name_to_queue(data.UserName)
+    if response == 'already_registered':
         Parent.SendStreamMessage("{} is already in the queue. Please wait your turn!".format(data.UserName, data.GetParam(1)))
-    else:
+    elif response == 'success':
         add_name_to_queue(data.UserName)
         Parent.SendStreamMessage("{} has been added to the queue!".format(data.UserName, data.GetParam(1)))
 
@@ -86,13 +86,15 @@ def print_help(data):
     Parent.SendStreamMessage("Available Commands:\n!beavers addme - Add yourself as a beaver to be born!\n!beavers list - Display upcoming beavers")
 
 def latest_names_queue():
-    file = open(ScriptSettings.NamesFileLocation, "r")
-    return [line.rstrip("\n") for line in file]
+    response = Parent.GetRequest("http://localhost:9001/list", {})
+    response_json = json.loads(response)
+    return response_json["response"]
 
 def add_name_to_queue(name):
-    file = open(ScriptSettings.NamesFileLocation, "a")
-    file.write(name + "\n")
-    file.close()
+    response = Parent.PostRequest("http://localhost:9001/add", {}, {'UserName': name}, True)
+    response_json = json.loads(response)
+    return response_json["response"]
+
 #---------------------------
 #   [Required] Tick method (Gets called during every iteration even when there is no incoming data)
 #---------------------------
